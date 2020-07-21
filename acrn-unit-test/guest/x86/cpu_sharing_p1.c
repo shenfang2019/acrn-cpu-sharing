@@ -26,22 +26,22 @@ static void tsc_calibrate(void)
 	u32 eax_base_mhz = 0, ebx_max_mhz = 0, ecx_bus_mhz = 0, edx;
 
 	__asm volatile("cpuid"
-				   : "=a"(eax_denominator), "=b"(ebx_numerator), "=c"(ecx_crystal_hz), "=d"(reserved)
-				   : "0" (0x15), "2" (0)
-				   : "memory");
+	    :"=a"(eax_denominator), "=b"(ebx_numerator), "=c"(ecx_crystal_hz), "=d"(reserved)
+	    : "0" (0x15), "2" (0)
+	    : "memory");
 
-	printf("crystal_hz:%u\n\r", ecx_crystal_hz);
-
+	printf("crystal_hz:%u\n\r",ecx_crystal_hz);
+	
 	if (ecx_crystal_hz != 0) {
 		tsc_hz = ((uint64_t) ecx_crystal_hz *
-				  ebx_numerator) / eax_denominator;
+		        ebx_numerator) / eax_denominator;
 		apic_timer_hz = ecx_crystal_hz;
 	} else {
 
 		__asm volatile("cpuid"
-					   : "=a"(eax_base_mhz), "=b"(ebx_max_mhz), "=c"(ecx_bus_mhz), "=d"(edx)
-					   : "0" (0x16), "2" (0)
-					   : "memory");
+		    :"=a"(eax_base_mhz), "=b"(ebx_max_mhz), "=c"(ecx_bus_mhz), "=d"(edx)
+		    : "0" (0x16), "2" (0)
+		    : "memory");
 
 		tsc_hz = (uint64_t) eax_base_mhz * 1000000U;
 		apic_timer_hz = tsc_hz * eax_denominator / ebx_numerator;
@@ -80,11 +80,10 @@ static void sleep_ns(u64 ns)
 	u64 tsc;
 
 	tsc = rdtsc();
-	while (1) {
+	while(1) {
 		asm volatile("pause");
-		if ((tsc + ns * TSC_TICKS_PER_NS) < rdtsc()) {
+		if ((tsc + ns * TSC_TICKS_PER_NS) < rdtsc())
 			break;
-		}
 	}
 }
 //#define HV_X64_MSR_TIME_REF_COUNT	0x40000020U
@@ -106,15 +105,15 @@ static bool start_dtimer(u64 ticks_interval)
 
 static int enable_tsc_deadline_timer(void)
 {
-	u32 lvtt;
+    u32 lvtt;
 
-	if (cpuid(1).c & (1 << 24)) {
-		lvtt = APIC_LVT_TIMER_TSCDEADLINE | TSC_DEADLINE_TIMER_VECTOR;
-		apic_write(APIC_LVTT, lvtt);
-		return 1;
-	} else {
-		return 0;
-	}
+    if (cpuid(1).c & (1 << 24)) {
+        lvtt = APIC_LVT_TIMER_TSCDEADLINE | TSC_DEADLINE_TIMER_VECTOR;
+        apic_write(APIC_LVTT, lvtt);
+        return 1;
+    } else {
+        return 0;
+    }
 }
 static bool init_rtsc_dtimer(void)
 {
@@ -148,21 +147,21 @@ static bool init_rtsc_dtimer(void)
 static void pio_test()
 {
 #if 1
-	u8 reg8_value, reg8_value_prev;
+	u8 reg8_value,reg8_value_prev;
 	reg8_value = inb(RTC_INDEX_REG);
-
+	
 	outb(YEAR_INDEX, RTC_INDEX_REG);
 	reg8_value = inb(RTC_TARGET_REG);
-
+	
 	outb(YEAR_INDEX, 0x72);
 	reg8_value = inb(0x73);
 	reg8_value_prev = reg8_value;//make GCC Happy
-
+	
 	outb(B_INDEX, RTC_INDEX_REG);
-	reg8_value_prev = inb(RTC_TARGET_REG);
+	reg8_value_prev = inb(RTC_TARGET_REG);	
 	outb(0xFF, RTC_TARGET_REG);
 	reg8_value = inb(RTC_TARGET_REG);
-
+	
 	reg8_value = reg8_value_prev;//make GCC Happy
 	//printf("tdt_isr=%d cnt=%lx\n\r",tdt_isr,process_dtimer_cnt);
 #endif
@@ -190,9 +189,8 @@ int test_gp_ins()
 	const unsigned long in_rax = 0x1234567890abcdeful;
 
 	asm("nop\n\t" : "=a" (rax) : "0" (in_rax));
-	if (rax != in_rax) {
+	if(rax != in_rax)
 		ret = GP_INS_TEST_FAILED;
-	}
 	return ret;
 }
 int test_fpu()
@@ -202,7 +200,7 @@ int test_fpu()
 	float f_test_result = 0.0f;
 	int	ret = TEST_OK;
 	ulong cr0 = read_cr0();
-
+	
 	write_cr0(cr0 & ~0xe); /*MP, EM, TS */
 
 	asm volatile("fninit");
@@ -211,10 +209,9 @@ int test_fpu()
 	asm volatile("fld %0" : : "m"(f_st2) : "memory");
 	asm volatile("fadd %%st(1), %%st(0)" : : :);
 	asm volatile("fst %0" : "=m"(f_test_result):  : "memory");
-
-	if (f_test_result != (f32fp + f_st2)) {
+	
+	if (f_test_result != (f32fp + f_st2))
 		ret = FPU_TEST_FAILED;
-	}
 
 	//write cr0 back
 	write_cr0(cr0);
@@ -227,99 +224,97 @@ int  test_mmx_mov(void)
 	/*
 	 * Initialize FPU without checking for pending unmasked
 	 * floating-point exceptions.
-	 */
+	 */	
 	//asm volatile("fninit");
 	u64 u64_data = 0x0102030405060708ULL;
 	u64 test_result;
 	asm volatile("movq %0, %%mm0" : : "m"(u64_data) : "memory");
 	asm volatile("movq %%mm0, %0" : "=m"(test_result):  : "memory");
-
-	if (test_result != u64_data) {
-		report("CPU sharing MMX movq test failed", 0);
+	
+	if (test_result != u64_data){
+		report("CPU sharing MMX movq test failed",0);
 		return MMX_TEST_FAILED;
 	}
-
+		
 	u32 u32_test_result = 0;
-	u32 u32_data = 0x01020304UL;
+	u32 u32_data = 0x01020304UL;	
 	asm volatile("movd %0, %%mm1" : : "m"(u32_data) : "memory");
-	asm volatile("movd %%mm1, %0" : "=m"(u32_test_result): : "memory");
-	if (u32_test_result != u32_data) {
-		report("CPU sharing MMX movd test", 0);
+	asm volatile("movd %%mm1, %0" : "=m"(u32_test_result): : "memory");	
+	if (u32_test_result != u32_data){
+		report("CPU sharing MMX movd test",0);
 		return MMX_TEST_FAILED;
 	}
 	return 0;
 }
 
 int test_mmx_add(void)
-{
-	u64 u64_data = 0x0101010101010101ULL;
+{	
+	u64 u64_data = 0x0101010101010101ULL;	
 	u64 test_result = 0;
 
 	asm volatile("movq %0, %%mm2" : : "m"(u64_data) : "memory");
 	asm volatile("paddq %0, %%mm2" : : "m"(u64_data): "memory");
-	asm volatile("movq %%mm2, %0" : "=m"(test_result):  : "memory");
+	asm volatile("movq %%mm2, %0" : "=m"(test_result):  : "memory");	
 
-	if (test_result != u64_data + u64_data) {
-		report("CPU sharing MMX add test", 0);
+	if (test_result != u64_data + u64_data){
+		report("CPU sharing MMX add test",0);
 		return MMX_TEST_FAILED;
 	}
-
+	
 	return TEST_OK;
 }
 
 int   test_mmx_compare(void)
-{
+{	
 	u64 u64_data1 = 0x0101010101010101ULL;
-	u64 u64_data2 = 0x0201010102010101ULL;
+	u64 u64_data2 = 0x0201010102010101ULL;		
 	u64 test_result = 0x11;
 	int ret = TEST_OK;
-
+	
 	asm volatile("movq %0, %%mm3" : : "m"(u64_data1) : "memory");
 	/* Compare packed doublewords in mm/m64 andmm for equality */
 	asm volatile("pcmpeqd %0, %%mm3" : : "m"(u64_data2): "memory");
 	asm volatile("movq %%mm3, %0" : "=m"(test_result):  : "memory");
-	if (test_result != 0) {
+	if (test_result != 0) 
 		ret = MMX_TEST_FAILED;
-	}
 
 	u64_data2 = u64_data1;
 	asm volatile("movq %0, %%mm3" : : "m"(u64_data1) : "memory");
 	/* Compare packed doublewords in mm/m64 andmm for equality */
 	asm volatile("pcmpeqd %0, %%mm3" : : "m"(u64_data2): "memory");
 	asm volatile("movq %%mm3, %0" : "=m"(test_result):  : "memory");
-	if (test_result != 0xffffffffffffffffULL) {
+	if (test_result != 0xffffffffffffffffULL)
 		ret = MMX_TEST_FAILED;
-	}
 
-	if (ret != TEST_OK) {
-		report("CPU sharing MMX compare test", 0);
-	}
-
+	if (ret != TEST_OK)
+		report("CPU sharing MMX compare test",0);
+	
 	return ret;
-
+		
 }
 
 int test_mmx()
 {
 	ulong cr0 = read_cr0();
-
-	write_cr0(cr0 & ~0xe); /*MP, EM, TS */
+	
+    write_cr0(cr0 & ~0xe); /*MP, EM, TS */
 	asm volatile("emms");
 	if ((test_mmx_mov() != TEST_OK)		\
-		|| (test_mmx_add() != TEST_OK)	\
-		|| (test_mmx_compare() != TEST_OK)) {
+		|| (test_mmx_add() !=TEST_OK)	\
+		|| (test_mmx_compare() != TEST_OK))
+	{
 		write_cr0(cr0);
-		return MMX_TEST_FAILED;
+		return MMX_TEST_FAILED;	
 	}
-#if 0
-	v = 0x0102030405060708ULL;
-	asm("movq %1, %0" : "=m"(*mem) : "y"(v));
-	report("movq (mmx, read)", v == *mem);
-	*mem = 0x8070605040302010ull;
-	asm("movq %1, %0" : "=y"(v) : "m"(*mem));
-	report("movq (mmx, write)", v == *mem);
+#if 0	
+    v = 0x0102030405060708ULL;
+    asm("movq %1, %0" : "=m"(*mem) : "y"(v));
+    report("movq (mmx, read)", v == *mem);
+    *mem = 0x8070605040302010ull;
+    asm("movq %1, %0" : "=y"(v) : "m"(*mem));
+    report("movq (mmx, write)", v == *mem);
 #endif
-	//recover cr0
+	//recover cr0 
 	write_cr0(cr0);
 	return TEST_OK;
 }
@@ -369,11 +364,11 @@ void make_gcc_happy()
 }
 void invalid_ept(void)
 {
-	struct invept_desc desc = {0};
-	u64 type = 2U;
-	asm volatile("invept %0, %1\n" :
-				 : "m" (desc), "r" (type)
-				 : "memory");
+    struct invept_desc desc = {0};
+    u64 type = 2U;
+    asm volatile("invept %0, %1\n" :
+                : "m" (desc), "r" (type)
+                : "memory");
 }
 
 void update_eoi()
@@ -384,22 +379,22 @@ void update_eoi()
 /*
 *
 *
-*TC_CPU_sharing_rr_scheduler_001
-*run "hlt" and "pause" instruction
+*TC_CPU_Sharing_001	
+*run "hlt" and "pause" instruction 
 */
-#define mem_size (4*1024)
+#define mem_size (4*1024)	
 #define TICKS_PER_SEC 	tsc_hz
 #define TICKS_PER_MS	tsc_hz/1000
 void cpu_sharing_test001(int *p, u64 ticks)
 {
 	bool test_end = false;
-
-	printf("start TC_CPU_sharing_rr_scheduler_001:run hlt and pause instruction\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
+	
+	printf("start TC_CPU_Sharing_001:run hlt and pause instruction\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
 
 	start_dtimer(ticks);//pls do not end this case untile this timer experi
-	while (1) {
-		for (int i = 0; i < mem_size / 4; i++) {
+	while(1) {
+		for (int i = 0; i < mem_size/4; i++) {
 			*(p + i) = i;
 			asm volatile("hlt");
 			asm volatile ("pause");
@@ -411,16 +406,15 @@ void cpu_sharing_test001(int *p, u64 ticks)
 				break;
 			}
 		}
-
-		if (test_end) {
+		
+		if (test_end)
 			break;
-		}
 	}
-	report("TC_CPU_sharing_rr_scheduler_001\n\r", 1);
+	report("TC_CPU_Sharing_001\n\r",1);
 }
 
 /*
-*TC_CPU_sharing_rr_scheduler_002
+*TC_CPU_Sharing_002	
 *emulate virtual interrupt
 */
 static volatile int ipi_count = 0;
@@ -433,18 +427,17 @@ static void self_ipi_isr(isr_regs_t *regs)
 static int test_self_ipi(void)
 {
 	int ret = TEST_OK;
-
+	
 	//apic_icr_write(APIC_DEST_SELF | APIC_DEST_PHYSICAL | APIC_DM_FIXED | 0xf1,
-	//		   0);
-
+		//		   0);
+		
 	/*send ipi to apic_id=0 of cpu*/
 	apic_icr_write(APIC_DEST_PHYSICAL | APIC_DM_FIXED | 0xf1 | 0, 0);
 	asm volatile ("nop");
 	asm volatile ("nop");
-
-	if (ipi_count == 0) {
+	
+	if (ipi_count == 0)
 		ret = TEST_FAILED;
-	}
 
 	ipi_count = 0;
 	return ret;
@@ -452,18 +445,17 @@ static int test_self_ipi(void)
 void cpu_sharing_test002(u64 ticks)
 {
 	bool ret = true;
-
-	printf("start TC_CPU_sharing_rr_scheduler_002:emulate virtual interrupt\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
-
+	
+	printf("start TC_CPU_Sharing_002:emulate virtual interrupt\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
+	
 	handle_irq(0xf1, self_ipi_isr);
 	irq_enable();
 	start_dtimer(ticks);
-
-	while (1) {
-		if (test_self_ipi() != TEST_OK) {
+	
+	while(1) {
+		if (test_self_ipi() != TEST_OK)
 			ret = false;
-		}
 
 		if (tdt_isr_flag) {
 			tdt_isr_flag = false;
@@ -471,12 +463,12 @@ void cpu_sharing_test002(u64 ticks)
 		}
 		sleep_ns(1000);
 	}
-	report("TC_CPU_sharing_rr_scheduler_002\n\r", ret);
+	report("TC_CPU_Sharing_002\n\r",ret);
 }
 /*
 *
 *
-*TC_CPU_sharing_rr_scheduler_003	trigger exception
+*TC_CPU_Sharing_003	trigger exception 	
 *
 *
 */
@@ -489,58 +481,56 @@ static int test_ud2()
 }
 
 static int test_gp()
-{
-#if 0
-	/*write cr4 to gernate #GP,this will cause vmexit.When TSC timer interrupt,sometimes,
+{	
+	#if 0
+	/*write cr4 to gernate #GP,this will cause vmexit.When TSC timer interrupt,sometimes, 
 	in Interrupt handler, To send EOI will occur #GP
 	*/
 	unsigned long tmp;
 
 	asm volatile("mov $0xffffffff, %0 \n\t"
 				 ASM_TRY("1f")
-				 "mov %0, %%cr4\n\t"
+		 "mov %0, %%cr4\n\t"
 				 "1:"
 				 : "=a"(tmp));
 	return exception_vector();
-#else
+	#else
 	ulong *addr = (ulong*)0xfe000000006000u;
 	asm volatile(ASM_TRY("1f")
-				 "adc  $0x32, %0 \n\t"
-				 "1:"::"m"(*addr));
+		"adc  $0x32, %0 \n\t"
+		"1:"::"m"(*addr));
 	return exception_vector();
-#endif
+	#endif
 }
 
 int exception_test()
 {
 	int r = TEST_OK;
-
-	if (test_gp() != GP_VECTOR) {
+	
+	if (test_gp() != GP_VECTOR) 
 		r = EXCEPTION_GP_FAILED;
-	}
-
-	if (test_ud2() != UD_VECTOR) {
+	
+	if (test_ud2() != UD_VECTOR)
 		r = EXCEPTION_UD_FAILED;
-	}
 	return r;
 }
 
 void cpu_sharing_test003(int *p, u64 ticks)
 {
 	bool test_end = false;
-	int ret, err = 0;
+	int ret,err = 0;
 	bool result = true;
-
-	printf("start TC_CPU_sharing_rr_scheduler_003: trigger exception\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
+	
+	printf("start TC_CPU_Sharing_003: trigger exception\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
 	start_dtimer(ticks);
-
-	while (1) {
-		for (int i = 0; i < mem_size / 4; i++) {
+	
+	while(1) {
+		for (int i = 0; i < mem_size/4; i++) {
 			*(p + i) = i;
 			ret = exception_test();
 			if (ret != TEST_OK) {
-				err = ret;
+				err = ret;	
 				result = false;
 			}
 			sleep_ns(100);
@@ -550,73 +540,72 @@ void cpu_sharing_test003(int *p, u64 ticks)
 				break;
 			}
 		}
-
-		if (test_end) {
+		
+		if (test_end)
 			break;
-		}
 	}
-	report("TC_CPU_sharing_rr_scheduler_003 %d\n\r", result, err);
+	report("TC_CPU_Sharing_003 %d\n\r",result,err);
 }
 /*
 *
 *
-*TC_CPU_sharing_rr_scheduler_004:send SIPI to AP from BP
+*TC_CPU_Sharing_004:send SIPI to AP from BP	
 *
-*This case need two cpu to test.
+*This case need two cpu to test. 
 *when system bootup,the BSP cpu will send SIPI to APs to start them.
 *So, in Multiple CPUs System, if other APs startup normally, this case has been tested
 */
 void cpu_sharing_test004(int *p, u64 ticks)
 {
 
-
-	report("TC_CPU_sharing_rr_scheduler_004\n\r", 1);
+	
+	report("TC_CPU_Sharing_004\n\r",1);
 }
 
 /*
 *
-*TC_CPU_sharing_rr_scheduler_005	write/read PIO per 2ms
+*TC_CPU_Sharing_005	write/read PIO per 2ms
 *
 */
 void cpu_sharing_test005( u64 ticks)
 {
-
-	printf("start TC_CPU_sharing_rr_scheduler_005:write/read PIO per 2ms\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
+	
+	printf("start TC_CPU_Sharing_005:write/read PIO per 2ms\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
 
 	start_dtimer(ticks);
-	while (1) {
+	while(1) {
 		pio_test();
-		sleep_ns(2 * 1000);
+		sleep_ns(2*1000);
 		if (tdt_isr_flag) {
 			tdt_isr_flag = false;
 			break;
 		}
 	}
-	report("TC_CPU_sharing_rr_scheduler_005\n\r", 1);
+	report("TC_CPU_Sharing_005\n\r",1);
 }
 
 /*
 *
-*TC_CPU_sharing_rr_scheduler_006	write/read PIO per 100ms
+*TC_CPU_Sharing_006	write/read PIO per 100ms
 *
 */
 void cpu_sharing_test006(u64 ticks)
 {
-
-	printf("start TC_CPU_sharing_rr_scheduler_006:write/read PIO per 100ms\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
+	
+	printf("start TC_CPU_Sharing_006:write/read PIO per 100ms\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
 
 	start_dtimer(ticks);
-	while (1) {
+	while(1) {
 		pio_test();
-		sleep_ns(100 * 1000);
+		sleep_ns(100*1000);
 		if (tdt_isr_flag) {
 			tdt_isr_flag = false;
 			break;
 		}
 	}
-	report("TC_CPU_sharing_rr_scheduler_006 \n\r", 1);
+	report("TC_CPU_Sharing_006 \n\r",1);
 }
 
 typedef unsigned __attribute__((vector_size(32))) avx256;
@@ -644,7 +633,7 @@ bool test_avx_vsqrtpd(void)
 {
 //	avx_union m256;
 	//float tmp = 45.67;
-	__attribute__ ((aligned(64))) avx_union avx_temp, avx_temp1, avx_temp2, avx_result;
+__attribute__ ((aligned(64))) avx_union avx_temp,avx_temp1,avx_temp2,avx_result;
 
 	avx_temp.avx_m[0] = 1111.11;
 	avx_temp.avx_m[1] = 2222.22;
@@ -667,32 +656,32 @@ bool test_avx_vsqrtpd(void)
 	avx_temp1.avx_m[7] = avx_temp2.avx_m[7] = 0.0;
 	//u32 val = 0xffff;
 	//u32 reg_val;
-
+	
 	//asm volatile("stmxcsr %0" : "=m"(reg_val));
 	//printf("reg_val:%x\n\r",reg_val);
 	//asm volatile("ldmxcsr %0" : : "m"(val));
-	/*vsqrtpd:get Square Roots value of first OP to ymm1 register*/
+/*vsqrtpd:get Square Roots value of first OP to ymm1 register*/
 	asm volatile(
-		"vmovaps %[avx_temp], %%ymm1 \n\t"
-		"vsqrtps %[avx_temp1], %%ymm2 \n\t"
-		"vcmpps $0,%[avx_temp2], %%ymm2, %%ymm3 \n\t"
-		"vmovaps %%ymm3, %[result] \n\t"
-		:[result]"=m"(avx_result)
-		:[avx_temp]"m"(avx_temp), [avx_temp1]"m"(avx_temp1), [avx_temp2]"m"(avx_temp2)
-		:"memory");
-
+	"vmovaps %[avx_temp], %%ymm1 \n\t"
+	"vsqrtps %[avx_temp1], %%ymm2 \n\t"
+	"vcmpps $0,%[avx_temp2], %%ymm2, %%ymm3 \n\t"
+	"vmovaps %%ymm3, %[result] \n\t"
+	:[result]"=m"(avx_result) 
+	:[avx_temp]"m"(avx_temp),[avx_temp1]"m"(avx_temp1),[avx_temp2]"m"(avx_temp2)
+	:"memory");
+	
 	for (int i = 0; i < 8; i++) {
-		if (avx_result.avx_u[i] != 0xffffffffU) {
+		if (avx_result.avx_u[i] != 0xffffffffU) { 
 			//printf("0x%x", avx_result.avx_u[i]);
 			return false;
 		}
 	}
-
+		
 	return true;
-}
+}	
 bool test_avx_vaddps()
 {
-	__attribute__ ((aligned(64))) avx_union avx_temp, avx_temp1, avx_temp2, avx_result;
+__attribute__ ((aligned(64))) avx_union avx_temp,avx_temp1,avx_temp2,avx_result;
 
 	avx_temp.avx_m[0] = 1111.11;
 	avx_temp.avx_m[1] = 2222.22;
@@ -707,8 +696,8 @@ bool test_avx_vaddps()
 	avx_temp1.avx_m[1] = avx_temp1.avx_m[2] = avx_temp1.avx_m[3] = 0.0;
 	avx_temp1.avx_m[4] = avx_temp1.avx_m[5] = avx_temp1.avx_m[6] = 0.0;
 	avx_temp1.avx_m[7] = 0.0;
-
-	avx_temp2.avx_m[0] = 2345.67; //avx_temp2 = avx_temp + avx_temp1
+	
+	avx_temp2.avx_m[0] = 2345.67; //avx_temp2 = avx_temp + avx_temp1 
 	avx_temp2.avx_m[1] = 2222.22;
 	avx_temp2.avx_m[2] = 3333.33;
 	avx_temp2.avx_m[3] = 4444.44;
@@ -718,26 +707,25 @@ bool test_avx_vaddps()
 	avx_temp2.avx_m[7] = 8888.88;
 
 	asm volatile (
-		"vmovaps %1, %%ymm2 \n\t"
-		"vaddps %2, %%ymm2, %%ymm1 \n\t"
-		"vcmpps $0, %3, %%ymm1, %%ymm3 \n\t"
-		"vmovaps %%ymm3, %0"
-		:"=m"(avx_result)
-		:"m"(avx_temp), "m"(avx_temp1), "m"(avx_temp2)
-		:"memory");
+	"vmovaps %1, %%ymm2 \n\t"
+	"vaddps %2, %%ymm2, %%ymm1 \n\t"
+	"vcmpps $0, %3, %%ymm1, %%ymm3 \n\t"
+	"vmovaps %%ymm3, %0"
+	:"=m"(avx_result)
+	:"m"(avx_temp),"m"(avx_temp1),"m"(avx_temp2)
+	:"memory");
 
 	for (int i = 0; i < 8; i++) {
-		if (avx_result.avx_u[i] != 0xffffffffU) {
+		if (avx_result.avx_u[i] != 0xffffffffU)
 			return false;
-		}
 	}
-
+	
 	return true;
 }
 int test_avx()
 {
 	int error_code = 0;
-
+	
 	if (test_avx_vsqrtpd() != true) {
 		error_code = 1;
 		goto TEST_AVX_FAILED;
@@ -747,511 +735,518 @@ int test_avx()
 		error_code = 2;
 		goto TEST_AVX_FAILED;
 	}
-
+	
 	//if (avx
 	return TEST_OK;
-
+	
 TEST_AVX_FAILED:
-	printf("CPU Sharing  in test_avx() error code:%d", error_code);
+	printf("CPU Sharing  in test_avx() error code:%d",error_code);
 	return AVX_TEST_FAILED;
-}
-/*
-*
-*TC_CPU_sharing_rr_scheduler_007	execute AVX instructions
-*
-*/
-void cpu_sharing_test007(u64 ticks)
-{
-	bool ret = true;
-	ulong cr4;
-
-	printf("start TC_CPU_sharing_rr_scheduler_007:execute AVX instructions\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
-	cr4 = read_cr4();
-	write_cr4(cr4 | (1 << 18)); /* osxsave */
-	if (!check_avx_supported()) {
-		report_skip("Not support avx instruction,cpu_sharing_test008");
-		write_cr4(cr4);
-		return;
-	}
-
-	start_dtimer(ticks);
-	while (1) {
-		if (test_avx() != TEST_OK) {
-			ret = false;
-		}
-		sleep_ns(1000);
-		if (tdt_isr_flag) {
-			tdt_isr_flag = false;
-			break;
-		}
-	}
-
-	write_cr4(cr4);
-	report("TC_CPU_sharing_rr_scheduler_007\n\r", ret);
-}
-typedef unsigned __attribute__((vector_size(16))) sse128;
-typedef union {
-	sse128 sse;
-	unsigned u[4];
-} sse_union;
-static bool sseeq(sse_union *v1, sse_union *v2)
-{
-	bool ok = true;
-	int i;
-
-	for (i = 0; i < 4; ++i) {
-		ok &= v1->u[i] == v2->u[i];
-	}
-
-	return ok;
-}
-__attribute__((target("sse"))) int test_sse(sse_union *mem)
-{
-	sse_union v;
-	int error_code;
-
-	write_cr0(read_cr0() & ~6); /* EM, TS */
-	write_cr4(read_cr4() | 0x200); /* OSFXSR */
-	v.u[0] = 1;
-	v.u[1] = 2;
-	v.u[2] = 3;
-	v.u[3] = 4;
-	asm("movdqu %1, %0" : "=m"(*mem) : "x"(v.sse));
-	if (sseeq(&v, mem) != true) {
-		error_code = 1;
-		goto TEST_SSE_FAILED;
-	}
-	mem->u[0] = 5;
-	mem->u[1] = 6;
-	mem->u[2] = 7;
-	mem->u[3] = 8;
-	asm("movdqu %1, %0" : "=x"(v.sse) : "m"(*mem));
-	if (sseeq(mem, &v) != true) {
-		error_code = 2;
-		goto TEST_SSE_FAILED;
-	}
-
-	v.u[0] = 1;
-	v.u[1] = 2;
-	v.u[2] = 3;
-	v.u[3] = 4;
-	asm("movaps %1, %0" : "=m"(*mem) : "x"(v.sse));
-	if (sseeq(mem, &v) != true) {
-		error_code = 3;
-		goto TEST_SSE_FAILED;
-	}
-	mem->u[0] = 5;
-	mem->u[1] = 6;
-	mem->u[2] = 7;
-	mem->u[3] = 8;
-	asm("movaps %1, %0" : "=x"(v.sse) : "m"(*mem));
-	if (sseeq(mem, &v) != true) {
-		error_code = 4;
-		goto TEST_SSE_FAILED;
-	}
-
-	v.u[0] = 1;
-	v.u[1] = 2;
-	v.u[2] = 3;
-	v.u[3] = 4;
-	asm("movapd %1, %0" : "=m"(*mem) : "x"(v.sse));
-	if (sseeq(mem, &v) != true) {
-		error_code = 5;
-		goto TEST_SSE_FAILED;
-	}
-	mem->u[0] = 5;
-	mem->u[1] = 6;
-	mem->u[2] = 7;
-	mem->u[3] = 8;
-	asm("movapd %1, %0" : "=x"(v.sse) : "m"(*mem));
-	if (sseeq(mem, &v) != true) {
-		error_code = 6;
-		goto TEST_SSE_FAILED;
-	}
-
-	return TEST_OK;
-
-TEST_SSE_FAILED:
-	printf("CPU Sharing  in test_sse() error code:%d", error_code);
-	return SSE_TEST_FAILED;
-}
-
-/*
-*
-*
-*TC_CPU_sharing_rr_scheduler_008	execute SSE instructions
-*Assume Platform support SSE instructions by default,we needn't check.
-*/
-void cpu_sharing_test008(u64 ticks)
-{
-	bool ret = true;
-	sse_union *mem;
-
-	printf("start TC_CPU_sharing_rr_scheduler_008:excute SSE instruction\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
-
-	mem = (sse_union *)malloc(sizeof(sse_union));
-	if (mem == NULL) {
-
-		report_skip("no enough mem,cpu_sharing_test008 ");
-		return;
-	}
-
-	start_dtimer(ticks);
-	while (1) {
-		if (test_sse(mem) != 0) {
-			ret = false;
-		}
-
-		if (tdt_isr_flag) {
-			tdt_isr_flag = false;
-			break;
-		}
-	}
-	free(mem);
-	report("TC_CPU_sharing_rr_scheduler_008\n\r", ret);
-}
-
-/*
-*
-*TC_CPU_sharing_rr_scheduler_009	execute MMX instructions
-*
-*/
-void cpu_sharing_test009(u64 ticks)
-{
-	bool ret = true;
-
-	printf("start TC_CPU_sharing_rr_scheduler_009:execute MMX instructions\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
-
-	start_dtimer(ticks);
-	while (1) {
-		if (test_mmx() != TEST_OK) {
-			ret = false;
-		}
-
-		if (tdt_isr_flag) {
-			tdt_isr_flag = false;
-			break;
-		}
-	}
-	report("TC_CPU_sharing_rr_scheduler_009\n\r", ret);
-}
-/*
-*
-*TC_CPU_sharing_rr_scheduler_010	execute FPU instructions
-*
-*/
-void cpu_sharing_test010(u64 ticks)
-{
-	bool ret = true;
-
-	printf("start TC_CPU_sharing_rr_scheduler_010:execute FPU instructions\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
-
-	start_dtimer(ticks);
-	while (1) {
-		if (test_fpu() != TEST_OK) {
-			ret = false;
-		}
-
-		if (tdt_isr_flag) {
-			tdt_isr_flag = false;
-			break;
-		}
-	}
-	report("TC_CPU_sharing_rr_scheduler_010\n\r", ret);
-}
-/*
-*
-*TC_CPU_sharing_rr_scheduler_011	execute GP instructions(general purpose instructions)
-*
-*/
-void cpu_sharing_test011(u64 ticks)
-{
-	bool ret = true;
-
-	printf("start TC_CPU_sharing_rr_scheduler_011:execute general instructions\n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
-
-	start_dtimer(ticks);
-	while (1) {
-		if (test_gp_ins() != TEST_OK) {
-			ret = false;
-		}
-
-		if (tdt_isr_flag) {
-			tdt_isr_flag = false;
-			break;
-		}
-	}
-	report("TC_CPU_sharing_rr_scheduler_011\n\r", ret);
 }
 
 static int xsave_setbv(u32 index, u64 value)
 {
 	u32 eax = value;
 	u32 edx = value >> 32;
-#if 0
+    #if 0
 	asm volatile(ASM_TRY("1f")
-				 "xsetbv\n\t" /* xsetbv */
-				 "1:"
-				 : : "a" (eax), "d" (edx), "c" (index));
+		     "xsetbv\n\t" /* xsetbv */
+		     "1:"
+		     : : "a" (eax), "d" (edx), "c" (index));
 	return exception_vector();
-#else
+    #else 
 	asm volatile("xsetbv\n" /* xsetbv */
-				 : : "a" (eax), "d" (edx), "c" (index));
+		     : : "a" (eax), "d" (edx), "c" (index));
 	return 0;
-#endif
+    #endif
 }
 static int xsave_getbv(u32 index, u64 *result)
 {
-	u32 eax, edx;
+    u32 eax, edx;
 
-	asm volatile("xgetbv\n" /* xgetbv */
-				 : "=a" (eax), "=d" (edx)
-				 : "c" (index));
-	*result = eax + ((u64)edx << 32);
-	return 0;
+    asm volatile("xgetbv\n" /* xgetbv */
+            : "=a" (eax), "=d" (edx)
+            : "c" (index));
+    *result = eax + ((u64)edx << 32);
+    return 0;
 }
 
 
-static int xsave_instruction(u64 *xsave_addr, u64 xcr0)
-{
-	u32 eax = xcr0;
-	u32 edx = xcr0 >> 32;
 
-#if 0
-	asm volatile(ASM_TRY("1f")
-				 "xsave %[addr]\n\t"
-				 "1:"
-				 : : [addr]"m"(xsave_array), "a"(eax), "d"(edx)
-				 : "memory");
-	return exception_vector();
-#else
-	asm volatile(
-		"xsave %[addr]\n"
-		: : [addr]"m"(*xsave_addr), "a"(eax), "d"(edx)
-		: "memory");
-	return 0;
-#endif
-}
-static u64 get_supported_xcr0(void)
-{
-	struct cpuid r;
-	r = cpuid_indexed(0xd, 0);
-	return r.a + ((u64)r.d << 32);
-}
-
-/*------------------------------------------------------*
-*   dump xsave reg to ptr
-*   TURE:sucess
-*   FALSE:failed
-*-------------------------------------------------------*/
-bool xsave_reg_dump(void *ptr)
-{
-//    void *mem;
-	uintptr_t p_align;
-//	void *fpu_sse,*ymm_ptr,*bnd_ptr;
-//    xsave_dump_t * xsave_reg;
-	size_t alignment;
-	u64 supported_xcr0;
-	u64 xcr0, cr4;
-
-	assert(ptr);
-	cr4 = read_cr4();
-	/*enable xsave feature set by set cr4.18*/
-	write_cr4(cr4 | (1 << 18)); /* osxsave */
-	supported_xcr0 = get_supported_xcr0();
-	/*enable all xsave bitmap 0x3--we support until now!!
-	MPX component is hidden,so we add it ?
-	*/
-	xsave_getbv(0, &xcr0);
-
-	//printf("support xcr0:%lx xcr0:%lx\n\r",supported_xcr0,xcr0);
-
-	xsave_setbv(0, supported_xcr0);
-
-	/*allocate 2K memory to save xsave feature*/
-//    mem = malloc(1 << 11);
-//    assert(mem);
-//    memset(mem, 0, (1 << 11));
-	/*mem base address must be 64 bytes aligned to excute "xsave". vol1 13.4 in SDM*/
-	alignment = 64;
-	p_align = (uintptr_t) ptr;
-	p_align = ALIGN(p_align, alignment);
-	if (xsave_instruction((void*)p_align, supported_xcr0) != 0) {
-		/*set origin xcr0 back*/
-		//xsave_setbv(0, xcr0);
-		write_cr4(cr4);
-		return false;
-	}
-#if 0
-	/*copy to dump buffer*/
-	xsave_reg = (xsave_dump_t *)ptr;
-	xsave = (xsave_area_t*)p_align;
-	fpu_sse = (void*) xsave;
-	memcpy((void*) & (xsave_reg->fpu_sse), fpu_sse, sizeof(fpu_sse_t));
-	ymm_ptr = (void*) &xsave->ymm[0];
-	memcpy((void*) & (xsave_reg->ymm), ymm_ptr, sizeof(xsave_avx_t));
-	bnd_ptr = (void*) &xsave->bndregs;
-	memcpy((void*) & (xsave_reg->bndregs), bnd_ptr, \
-		   sizeof(xsave_bndreg_t) + sizeof(xsave_bndcsr_t));
-	free(mem);
-#endif
-	/*set origin xcr0 back*/
-	//xsave_setbv(0, xcr0);
-	write_cr4(cr4);
-	return true;
-}
-
-
-int check_xsave_area()
-{
-	int ret = TEST_OK;
-	xsave_area_t *xsave_ptr1, *xsave_ptr2;
-	/*
-	*dump xsave register
-	*/
-	xsave_ptr1 = (xsave_area_t *)malloc(sizeof(xsave_area_t));
-	assert(xsave_ptr1);
-	memset(xsave_ptr1, 0x0, sizeof(xsave_area_t));
-	if (xsave_reg_dump((void*)xsave_ptr1) != true) {
-		printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
-		ret = XSAVE_AREA_CHECK_FAILED;
-	}
-
-	/*sleep a while time to check xsave later*/
-	sleep_ns(1000);
-
-	xsave_ptr2 = (xsave_area_t *)malloc(sizeof(xsave_area_t));
-	assert(xsave_ptr2);
-	memset(xsave_ptr2, 0x0, sizeof(xsave_area_t));
-	if (xsave_reg_dump((void*)xsave_ptr2) != true) {
-		printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
-		ret = XSAVE_AREA_CHECK_FAILED;
-	}
-	if (memcmp(xsave_ptr1, xsave_ptr2, sizeof(xsave_area_t)) != 0) {
-		ret = XSAVE_AREA_CHECK_FAILED;
-	}
-
-	free(xsave_ptr1);
-	free(xsave_ptr2);
-
-	return ret;
-}
 /*
 *
-*TC_CPU_sharing_rr_scheduler_012	check  xSave area during vcpu scheduling
+*TC_CPU_Sharing_007	execute AVX instructions
 *
 */
-void cpu_sharing_test012(u64 ticks)
+void cpu_sharing_test007(u64 ticks)
 {
 	bool ret = true;
+	ulong cr4;
+	u64 xcr0;
+	
+	printf("start TC_CPU_Sharing_007:execute AVX instructions\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
+	cr4 = read_cr4();
+	printf("after read cr4 \n");
+    write_cr4(cr4 | (1<<18)); /* osxsave */
+	xsave_getbv(0, &xcr0);
+	printf(" enable AVX in xcr0=%lx \n", xcr0 | (0x1 << 2) | (0x1 << 1));
+	xsave_setbv(0, xcr0 | (0x1 << 2) | (0x1 << 1));
 
-	printf("start TC_CPU_sharing_rr_scheduler_012:check xSave area \n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
-#if 0
-	/*
-	*dump xsave register
-	*/
-	xsave_ptr1 = (xsave_dump_t *)malloc(sizeof(xsave_dump_t));
-	assert(xsave_ptr1);
-	memset(xsave_ptr1, 0x0, sizeof(xsave_dump_t));
-	ret = xsave_reg_dump((void*)xsave_ptr1);
-	if (ret != true) {
-		printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
-		return -1;
+	printf(" after enable \n");
+	if (!check_avx_supported()) {
+		report_skip("Not support avx instruction,cpu_sharing_test008");
+		write_cr4(cr4);
+		return;
 	}
-#endif
+	
 	start_dtimer(ticks);
-	while (1) {
-		if (check_xsave_area() != TEST_OK) {
-			ret = false;
-		}
-
+	printf("start timer \n");
+	while(1) {
+		if (test_avx() != TEST_OK)
+			ret = false;			
+		sleep_ns(1000);
 		if (tdt_isr_flag) {
 			tdt_isr_flag = false;
 			break;
 		}
 	}
-	report("TC_CPU_sharing_rr_scheduler_012\n\r", ret);
+	
+	write_cr4(cr4);
+	report("TC_CPU_Sharing_007\n\r", ret);
+}
+typedef unsigned __attribute__((vector_size(16))) sse128;
+typedef union {
+    sse128 sse;
+    unsigned u[4];
+} sse_union;
+static bool sseeq(sse_union *v1, sse_union *v2)
+{
+    bool ok = true;
+    int i;
+
+    for (i = 0; i < 4; ++i) {
+	ok &= v1->u[i] == v2->u[i];
+    }
+
+    return ok;
+}
+__attribute__((target("sse"))) int test_sse(sse_union *mem)
+{
+    sse_union v;
+	int error_code;
+	
+    write_cr0(read_cr0() & ~6); /* EM, TS */
+    write_cr4(read_cr4() | 0x200); /* OSFXSR */
+    v.u[0] = 1; v.u[1] = 2; v.u[2] = 3; v.u[3] = 4;
+    asm("movdqu %1, %0" : "=m"(*mem) : "x"(v.sse));
+    if (sseeq(&v, mem) != true){
+		error_code = 1;
+		goto TEST_SSE_FAILED;
+    }
+    mem->u[0] = 5; mem->u[1] = 6; mem->u[2] = 7; mem->u[3] = 8;
+    asm("movdqu %1, %0" : "=x"(v.sse) : "m"(*mem));
+    if (sseeq(mem, &v) != true){
+		error_code = 2;
+		goto TEST_SSE_FAILED;
+    }
+
+    v.u[0] = 1; v.u[1] = 2; v.u[2] = 3; v.u[3] = 4;
+    asm("movaps %1, %0" : "=m"(*mem) : "x"(v.sse));
+    if (sseeq(mem, &v) != true){
+		error_code = 3;
+		goto TEST_SSE_FAILED;
+    }
+    mem->u[0] = 5; mem->u[1] = 6; mem->u[2] = 7; mem->u[3] = 8;
+    asm("movaps %1, %0" : "=x"(v.sse) : "m"(*mem));
+    if (sseeq(mem, &v) != true){
+		error_code = 4;
+		goto TEST_SSE_FAILED;
+    }
+
+    v.u[0] = 1; v.u[1] = 2; v.u[2] = 3; v.u[3] = 4;
+    asm("movapd %1, %0" : "=m"(*mem) : "x"(v.sse));
+    if (sseeq(mem, &v) != true){
+		error_code = 5;
+		goto TEST_SSE_FAILED;
+    }
+    mem->u[0] = 5; mem->u[1] = 6; mem->u[2] = 7; mem->u[3] = 8;
+    asm("movapd %1, %0" : "=x"(v.sse) : "m"(*mem));
+    if (sseeq(mem, &v) != true){
+		error_code = 6;
+		goto TEST_SSE_FAILED;
+    }
+
+	return TEST_OK;
+
+TEST_SSE_FAILED:
+	printf("CPU Sharing  in test_sse() error code:%d",error_code);
+	return SSE_TEST_FAILED;
+}
+
+/*
+*
+*
+*TC_CPU_Sharing_008	execute SSE instructions
+*Assume Platform support SSE instructions by default,we needn't check.
+*/
+void cpu_sharing_test008(u64 ticks)
+{
+	bool ret = true;
+	sse_union *mem;
+	u64 cr4, xcr0;
+	
+	printf("start TC_CPU_Sharing_008:excute SSE instruction\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
+
+	cr4 = read_cr4();
+	printf("after read cr4 \n");
+    	write_cr4(cr4 | (1<<18)); /* osxsave */
+	xsave_getbv(0, &xcr0);
+	printf(" enable SSE in xcr0 \n");
+	xsave_setbv(0, xcr0 | (0x1 << 1));
+
+	mem = (sse_union *)malloc(sizeof(sse_union));
+	if (mem == NULL) {
+		report_skip("no enough mem,cpu_sharing_test008 ");
+		return;
+	}
+
+	start_dtimer(ticks);
+	while(1) {
+		if (test_sse(mem) != 0)
+			ret = false;
+		
+		if (tdt_isr_flag) {
+			tdt_isr_flag = false;
+			break;
+		}
+	}
+	free(mem);
+	report("TC_CPU_Sharing_008\n\r",ret);
+}
+
+/*
+*
+*TC_CPU_Sharing_009	execute MMX instructions
+*
+*/
+void cpu_sharing_test009(u64 ticks)
+{
+	bool ret = true;
+	
+	printf("start TC_CPU_Sharing_009:execute MMX instructions\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
+
+	start_dtimer(ticks);
+	while(1) {
+		if (test_mmx() != TEST_OK)
+			ret = false;
+		
+		if (tdt_isr_flag) {
+			tdt_isr_flag = false;
+			break;
+		}
+	}
+	report("TC_CPU_Sharing_009\n\r",ret);
 }
 /*
 *
-*TC_CPU_sharing_rr_scheduler_013	matrix of instructions and schduler trigger
+*TC_CPU_Sharing_010	execute FPU instructions
+*
+*/
+void cpu_sharing_test010(u64 ticks)
+{
+	bool ret = true;
+	
+	printf("start TC_CPU_Sharing_010:execute FPU instructions\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
+
+	start_dtimer(ticks);
+	while(1) {
+		if (test_fpu() != TEST_OK)
+			ret = false;
+		
+		if (tdt_isr_flag) {
+			tdt_isr_flag = false;
+			break;
+		}
+	}
+	report("TC_CPU_Sharing_010\n\r",ret);
+}
+/*
+*
+*TC_CPU_Sharing_011	execute GP instructions(general purpose instructions)
+*
+*/
+void cpu_sharing_test011(u64 ticks)
+{
+	bool ret = true;
+	
+	printf("start TC_CPU_Sharing_011:execute general instructions\n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
+
+	start_dtimer(ticks);
+	while(1) {
+		if (test_gp_ins() != TEST_OK)
+			ret = false;
+		
+		if (tdt_isr_flag) {
+			tdt_isr_flag = false;
+			break;
+		}
+	}
+	report("TC_CPU_Sharing_011\n\r",ret);
+}
+
+static int xsave_instruction(u64 *xsave_addr, u64 xcr0)
+{
+    u32 eax = xcr0;
+    u32 edx = xcr0 >> 32;
+
+#if 0
+    asm volatile(ASM_TRY("1f")
+		     "xsave %[addr]\n\t" 
+		     "1:"
+		     : : [addr]"m"(xsave_array), "a"(eax), "d"(edx)
+		     : "memory");
+    return exception_vector();
+#else 
+    asm volatile(
+	     "xsave %[addr]\n" 
+	     : : [addr]"m"(*xsave_addr), "a"(eax), "d"(edx)
+	     : "memory");
+    return 0;
+#endif
+}
+static u64 get_supported_xcr0(void)
+{
+    struct cpuid r;
+    r = cpuid_indexed(0xd, 0);
+    return r.a + ((u64)r.d << 32);
+}
+
+/*------------------------------------------------------*
+*   dump xsave reg to ptr                  
+*   TURE:sucess                                         
+*   FALSE:failed                                          
+*-------------------------------------------------------*/
+bool xsave_reg_dump(void *ptr)
+{
+//    void *mem;
+    uintptr_t p_align;
+//	void *fpu_sse,*ymm_ptr,*bnd_ptr;
+//    xsave_dump_t * xsave_reg;
+    size_t alignment;
+    u64 supported_xcr0;
+    u64 xcr0,cr4;
+    
+    assert(ptr);
+	cr4 = read_cr4();
+     /*enable xsave feature set by set cr4.18*/
+    write_cr4(cr4 | (1<<18)); /* osxsave */
+    supported_xcr0 = get_supported_xcr0();
+    /*enable all xsave bitmap 0x3--we support until now!!
+    MPX component is hidden,so we add it ?
+    */
+    xsave_getbv(0, &xcr0);
+	
+    //printf("support xcr0:%lx xcr0:%lx\n\r",supported_xcr0,xcr0);
+	
+    xsave_setbv(0, supported_xcr0);
+    
+    /*allocate 2K memory to save xsave feature*/
+//    mem = malloc(1 << 11);
+//    assert(mem);
+//    memset(mem, 0, (1 << 11));
+    /*mem base address must be 64 bytes aligned to excute "xsave". vol1 13.4 in SDM*/
+    alignment = 64;
+    p_align = (uintptr_t) ptr;
+    p_align = ALIGN(p_align, alignment);
+    if (xsave_instruction((void*)p_align, supported_xcr0) != 0) {
+		/*set origin xcr0 back*/
+		//xsave_setbv(0, xcr0);
+		write_cr4(cr4);
+        return false;
+    }
+	#if 0
+    /*copy to dump buffer*/
+    xsave_reg = (xsave_dump_t *)ptr;
+    xsave = (xsave_area_t*)p_align;
+    fpu_sse = (void*) xsave;
+    memcpy((void*) &(xsave_reg->fpu_sse),fpu_sse,sizeof(fpu_sse_t));
+    ymm_ptr = (void*) &xsave->ymm[0];
+    memcpy((void*) &(xsave_reg->ymm), ymm_ptr, sizeof(xsave_avx_t));
+    bnd_ptr = (void*) &xsave->bndregs;
+    memcpy((void*) &(xsave_reg->bndregs),bnd_ptr, \
+            sizeof(xsave_bndreg_t) + sizeof(xsave_bndcsr_t));
+    free(mem);
+	#endif
+    /*set origin xcr0 back*/
+    //xsave_setbv(0, xcr0);
+    write_cr4(cr4);
+    return true;
+}
+
+
+int check_xsave_area(xsave_area_t *xsave_ptr1, xsave_area_t *xsave_ptr2)
+{
+	int ret = TEST_OK;
+	memset(xsave_ptr1, 0x0, sizeof(xsave_area_t));
+	if (xsave_reg_dump((void*)xsave_ptr1) != true){
+	  printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
+	  ret = XSAVE_AREA_CHECK_FAILED;
+	}
+	
+	/*sleep a while time to check xsave later*/
+	sleep_ns(1000);
+	
+	memset(xsave_ptr2, 0x0, sizeof(xsave_area_t));
+	if (xsave_reg_dump((void*)xsave_ptr2) != true) {
+	  printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
+	  ret = XSAVE_AREA_CHECK_FAILED;
+	}
+	if (memcmp(xsave_ptr1,xsave_ptr2,sizeof(xsave_area_t)) != 0)
+		ret = XSAVE_AREA_CHECK_FAILED;
+	
+	
+	return ret;
+}
+/*
+*
+*TC_CPU_Sharing_012	check  xSave area during vcpu scheduling
+*
+*/
+void cpu_sharing_test012(u64 ticks)
+{
+	bool ret = true;
+	
+	printf("start TC_CPU_Sharing_012:check xSave area \n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
+#if 0
+	/*
+	*dump xsave register 
+	*/
+	xsave_ptr1 = (xsave_dump_t *)malloc(sizeof(xsave_dump_t));
+	assert(xsave_ptr1);
+    memset(xsave_ptr1, 0x0, sizeof(xsave_dump_t));
+	ret = xsave_reg_dump((void*)xsave_ptr1);
+	if (ret != true){
+	  printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
+	  return -1;
+	}
+#endif	  
+	start_dtimer(ticks);
+	xsave_area_t *xsave_ptr1,*xsave_ptr2;
+	/*
+	*dump xsave register 
+	*/
+	xsave_ptr1 = (xsave_area_t *)malloc(sizeof(xsave_area_t));
+	assert(xsave_ptr1);
+
+	xsave_ptr2 = (xsave_area_t *)malloc(sizeof(xsave_area_t));
+	assert(xsave_ptr2);
+	while(1) {
+		if (check_xsave_area(xsave_ptr1, xsave_ptr2) != TEST_OK)
+			ret = false;
+		
+		if (tdt_isr_flag) {
+			tdt_isr_flag = false;
+			break;
+		}
+	}
+
+	free(xsave_ptr1);
+	free(xsave_ptr2);
+	report("TC_CPU_Sharing_012\n\r",ret);
+}
+/*
+*
+*TC_CPU_Sharing_013	matrix of instructions and schduler trigger
 *
 */
 void cpu_sharing_test013(u64 ticks)
 {
 	bool ret = true;
-
-	printf("start TC_CPU_sharing_rr_scheduler_013:matrix of instructions and schduler trigger \n\r");
-	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks / TICKS_PER_SEC / 60);
+	
+	printf("start TC_CPU_Sharing_013:matrix of instructions and schduler trigger \n\r");
+	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
 #if 0
 	/*
-	*dump xsave register
+	*dump xsave register 
 	*/
 	xsave_ptr1 = (xsave_dump_t *)malloc(sizeof(xsave_dump_t));
 	assert(xsave_ptr1);
-	memset(xsave_ptr1, 0x0, sizeof(xsave_dump_t));
+    memset(xsave_ptr1, 0x0, sizeof(xsave_dump_t));
 	ret = xsave_reg_dump((void*)xsave_ptr1);
-	if (ret != true) {
-		printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
-		return -1;
+	if (ret != true){
+	  printf("xsave_reg_dump::xsave_reg_dump return err\n\r");
+	  return -1;
 	}
-#endif
+#endif	  
 	start_dtimer(ticks);
-	while (1) {
+	
+	xsave_area_t *xsave_ptr1,*xsave_ptr2;
+	xsave_ptr1 = (xsave_area_t *)malloc(sizeof(xsave_area_t));
+	assert(xsave_ptr1);
+
+	xsave_ptr2 = (xsave_area_t *)malloc(sizeof(xsave_area_t));
+	assert(xsave_ptr2);
+
+	handle_irq(0xf1, self_ipi_isr);
+	irq_enable();  
+	
+	while(1) {
 		asm volatile("hlt");
 		asm volatile ("pause");
 		asm volatile("WBINVD");
-
+		
 		if (test_self_ipi() != TEST_OK) {
 			printf("test_self_ipi failed in cpu_sharing_test013 \n\r");
 			ret = false;
 		}
-
+		
 		if (exception_test() != TEST_OK) {
 			printf("exception test failed in cpu_sharing_test013 \n\r");
 			ret = false;
 		}
 
 		pio_test();
-
+		
 		sse_union mem;
 		if (test_sse(&mem) != TEST_OK) {
 			printf("sse test failed in cpu_sharing_test013 \n\r");
 			ret = false;
 		}
-
+		
 		if (test_mmx() != TEST_OK) {
 			printf("mmx test failed in cpu_sharing_test013 \n\r");
 			ret = false;
 		}
-
+		
 		if (test_fpu() != TEST_OK) {
 			printf("fpu test failed in cpu_sharing_test013 \n\r");
 			ret = false;
 		}
-
-		if (test_gp_ins() != TEST_OK) {
+		
+ 		if (test_gp_ins() != TEST_OK) {
 			printf("gp instruction test failed in cpu_sharing_test013 \n\r");
 			ret = false;
 		}
-
-		if (check_xsave_area() != TEST_OK) {
+		
+		if (check_xsave_area(xsave_ptr1, xsave_ptr2) != TEST_OK) {
 			printf("xave area checking failed in test\n\r");
 			ret = false;
 		}
-
+		
 		if (tdt_isr_flag) {
 			tdt_isr_flag = false;
 			break;
 		}
 	}
-	report("TC_CPU_sharing_rr_scheduler_013\n\r", ret);
+	free(xsave_ptr1);
+	free(xsave_ptr2);
+	report("TC_CPU_Sharing_013\n\r",ret);
 }
 
 void main()
@@ -1260,25 +1255,29 @@ void main()
 	u64 ticks;
 //	u64 print_cnt = 0;
 //	u64 rflags;
-
+	
 	setup_vm();
 	setup_idt();
 	tsc_calibrate();
-	if (init_rtsc_dtimer() != true) {
+	if (init_rtsc_dtimer() != true){
 		printf("not support tsc deadline timer\n\r");
 		return;
 	}
-
+	
 	ticks = TICKS_PER_SEC * 120;
 	p = (int *)malloc(mem_size);
-#if 0
-	cpu_sharing_test003(p, ticks);
-	//cpu_sharing_test007(ticks);
+#if 0	
+	cpu_sharing_test007(ticks);
+	cpu_sharing_test008(ticks);
+	cpu_sharing_test009(ticks);
+	cpu_sharing_test010(ticks);
+	cpu_sharing_test011(ticks);
+	cpu_sharing_test012(ticks);
 #else
 	cpu_sharing_test001(p, ticks);
 	cpu_sharing_test002(ticks);
 	cpu_sharing_test003(p, ticks);
-	//report_skip("TC_CPU_sharing_rr_scheduler_003: trigger exception");
+	//report_skip("TC_CPU_Sharing_003: trigger exception");
 	cpu_sharing_test004(p, ticks);
 	cpu_sharing_test005(ticks);
 	cpu_sharing_test006(ticks);
@@ -1288,47 +1287,47 @@ void main()
 	cpu_sharing_test010(ticks);
 	cpu_sharing_test011(ticks);
 	cpu_sharing_test012(ticks);
+	cpu_sharing_test013(ticks);
 	report_summary();
-#endif
+#endif	
 	free(p);
-
-#if 0
-	while (1) {
-		for (int i = 0; i < mem_size / 4; i++) {
-			*(p + i) = i;
-			asm volatile("hlt");
-			asm volatile ("pause");
-			asm volatile("WBINVD");
-			sleep_ns(100);
-			if (tdt_isr_flag) {
-				pio_test();
+	
+#if 0	
+		while(1) {
+			for (int i = 0; i < mem_size/4; i++) {
+				*(p + i) = i;
+				asm volatile("hlt");
+				asm volatile ("pause");
+				asm volatile("WBINVD");
+				sleep_ns(100);
+				if (tdt_isr_flag) {
+					pio_test();
+				}
 			}
+			
 		}
-
-	}
-
-	if (tdt_isr) {
-		start_dtimer(ticks);
-
-		tdt_isr = false;
-		if (process_dtimer_cnt % 200 == 0) {
-			if (print_cnt % 16 == 0) {
+	
+		if (tdt_isr) {
+			start_dtimer(ticks);
+		
+			tdt_isr = false;
+			if (process_dtimer_cnt%200 == 0) {
+			if (print_cnt%16 == 0)
 				printf("\n\r");
-			}
 			print_cnt ++;
-			printf("%lx ", print_cnt);
+			printf("%lx ",print_cnt);
+			}
+			pio_test();
 		}
-		pio_test();
-	}
 #endif
 #if 0
 	asm volatile("pushf\n\t"
 				 "pop %0\n\t"
 				 :"=m"(rflags)::"memory");
-	printf("rflags:%lx", rflags);
+	printf("rflags:%lx",rflags);
 	//invalid_ept();
 	//update_eoi();
-#endif
+#endif	
 
 }
 
