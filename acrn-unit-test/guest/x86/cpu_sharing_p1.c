@@ -787,18 +787,20 @@ void cpu_sharing_test007(u64 ticks)
 	printf("start TC_CPU_Sharing_007:execute AVX instructions\n\r");
 	printf("This case will take %lu minutes,pls wait ... ...\n\r", ticks/TICKS_PER_SEC/60);
 	cr4 = read_cr4();
-	printf("after read cr4 \n");
-    write_cr4(cr4 | (1<<18)); /* osxsave */
-	xsave_getbv(0, &xcr0);
-	printf(" enable AVX in xcr0=%lx \n", xcr0 | (0x1 << 2) | (0x1 << 1));
-	xsave_setbv(0, xcr0 | (0x1 << 2) | (0x1 << 1));
+	printf("read cr4=0x%lx\n", cr4);
 
-	printf(" after enable \n");
 	if (!check_avx_supported()) {
-		report_skip("Not support avx instruction,cpu_sharing_test008");
+		report_skip("Not support avx instruction,cpu_sharing_test007");
 		write_cr4(cr4);
 		return;
 	}
+      
+	write_cr4(cr4 | (1<<18)); /* osxsave */
+	xsave_getbv(0, &xcr0);
+	printf("get xcr0=0x%lx \n", xcr0);
+
+	xsave_setbv(0, xcr0 | (0x1 << 2) | (0x1 << 1));
+	printf("enable AVX in xcr0 \n");
 	
 	start_dtimer(ticks);
 	printf("start timer \n");
